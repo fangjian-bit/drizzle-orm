@@ -1,6 +1,6 @@
 import { aliasedTable, aliasedTableColumn, mapColumnsInAliasedSQLToAlias, mapColumnsInSQLToAlias } from '~/alias.ts';
 import { CasingCache } from '~/casing.ts';
-import { Column } from '~/column.ts';
+import { Column, mapColumnSelection } from '~/column.ts';
 import { entityKind, is } from '~/entity.ts';
 import { DrizzleError } from '~/errors.ts';
 import type { MigrationConfig, MigrationMeta } from '~/migrator.ts';
@@ -242,7 +242,14 @@ export class PgDialect {
 						chunk.push(sql` as ${sql.identifier(field.fieldAlias)}`);
 					}
 				} else if (is(field, Column)) {
-					if (isSingleTable) {
+					if (field.selectFromDb) {
+						const columnSql = isSingleTable ? sql.identifier(this.casing.getColumnCasing(field)) : field.getSQL();
+						const selectionSql = mapColumnSelection(field, columnSql);
+						chunk.push(selectionSql);
+						if (selectionSql !== columnSql) {
+							chunk.push(sql` as ${sql.identifier(this.casing.getColumnCasing(field))}`);
+						}
+					} else if (isSingleTable) {
 						chunk.push(sql.identifier(this.casing.getColumnCasing(field)));
 					} else {
 						chunk.push(field);
